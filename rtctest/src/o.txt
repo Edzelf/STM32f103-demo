@@ -1,0 +1,121 @@
+
+/*
+  SimpleRTC
+  This sketch shows how to configure the RTC and to display
+  the date and time periodically
+  Creation 12 Dec 2017
+  by Wi6Labs
+  Modified 03 Jul 2020
+  by Frederic Pillon for STMicroelectronics
+  This example code is in the public domain.
+  https://github.com/stm32duino/STM32RTC
+*/
+
+#include <Wire.h>
+#include <STM32RTC.h>
+
+#define SLEEP_PIN        PB8                              // Enable / disable sleepmode
+
+// Forward declarations:
+void print2digits(int number) ;
+
+/* Get the rtc object */
+STM32RTC& rtc = STM32RTC::getInstance();
+
+/* Change these values to set the current initial date */
+/* Monday 15th June 2015 */
+const byte weekDay = 1 ;
+const byte day = 7 ;
+const byte month = 8 ;
+const byte year = 20 ;
+
+void setup()
+{
+  byte seconds = atoi ( __TIME__ + 6 ) ;
+  byte minutes = atoi ( __TIME__ + 3 ) ;
+  byte hours   = atoi ( __TIME__ + 0 ) ;
+  
+  Serial.begin(115200);
+  delay ( 500 ) ;
+  Serial.println ( "Starting....") ;
+  // Enable the BKP registers (battery back-upped RAM)
+  RCC->APB1ENR |= ( RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN ) ;   // Enable power interface clock
+  PWR->CR |= PWR_CR_DBP ;                                       // Set DBP bit for access
+  // Select RTC clock source: LSI_CLOCK, LSE_CLOCK or HSE_CLOCK.
+  // By default the LSI is selected as source.
+  rtc.setClockSource ( STM32RTC::LSE_CLOCK ) ;
+  rtc.begin() ;                              // initialize RTC 24H format
+  bool RTCokay = rtc.isTimeSet() ;                // Check RTC
+  
+  if ( ! RTCokay )
+  {
+    // Set the time
+    rtc.setHours(hours);
+    rtc.setMinutes(minutes);
+    rtc.setSeconds(seconds);
+    // Set the date
+    rtc.setWeekDay(weekDay);
+    rtc.setDay(day);
+    rtc.setMonth(month);
+    rtc.setYear(year);
+    
+    // you can use also
+    //rtc.setTime(hours, minutes, seconds);
+    //rtc.setDate(weekDay, day, month, year);
+  }
+
+  pinMode ( SLEEP_PIN, INPUT ) ;              // Do not sleep if asserted
+  Serial.printf ( "T1 -Sleep pin is %d\n", digitalRead( SLEEP_PIN) ) ;
+  pinMode ( SLEEP_PIN, INPUT_PULLUP ) ;       // Do not sleep if asserted
+  Serial.printf ( "T2 - Sleep pin is %d\n", digitalRead( SLEEP_PIN) ) ;
+
+
+
+  // It seems that BKP->DR1 is used by the RTC driver.  So we have only 18 bytes.
+  uint32_t* i1 = (uint32_t*)&BKP->DR2 ;                         // Access DR2..DR10
+  for ( int i = 0 ; i < 9 ; i++ )
+  {
+     Serial.printf ( "BKP reg 0 at 0x%08X is 0x%04X\n", i1+i, i1[i] ) ;
+  }
+  Serial.println() ;
+  for ( int i = 0 ; i < 9 ; i++ )
+  {
+    i1[i] = 0x9000 + i  ;
+     Serial.printf ( "BKP reg 0 at 0x%08X is 0x%04X\n", i1+i, i1[i] ) ;
+  }
+  Serial.println() ;
+  for ( int i = 0 ; i < 9 ; i++ )
+  {
+    Serial.printf ( "BKP reg 0 at 0x%08X is 0x%04X\n", i1+i, i1[i] ) ;
+  }
+  Serial.println() ;
+}
+
+void loop()
+{
+  // Print date...
+  print2digits(rtc.getDay());
+  Serial.print("/");
+  print2digits(rtc.getMonth());
+  Serial.print("/");
+  print2digits(rtc.getYear());
+  Serial.print(" ");
+
+  // ...and time
+  print2digits(rtc.getHours());
+  Serial.print(":");
+  print2digits(rtc.getMinutes());
+  Serial.print(":");
+  print2digits(rtc.getSeconds());
+  Serial.println();
+
+  delay(1000);
+}
+
+void print2digits(int number) {
+  if (number < 10) {
+    Serial.print("0");
+  }
+  Serial.print(number);
+}
+
