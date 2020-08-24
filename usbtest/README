@@ -1,0 +1,2 @@
+This demonstrates the use of serial I/O over USB.
+Tested on blue pill clone and STM32_Smart V2.0.
